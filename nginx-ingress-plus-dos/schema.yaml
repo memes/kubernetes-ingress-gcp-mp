@@ -1,0 +1,292 @@
+# This schema has all values, role rules, and options required to install NGINX
+# ingress controller with App Protect DoS.
+x-google-marketplace:
+  schemaVersion: v2
+  clusterConstraints:
+    k8sVersion: ">= 1.21.0"
+  applicationApiVersion: v1beta1
+  publishedVersion: 'v2.4.2'
+  publishedVersionMetadata:
+    releaseNote: >-
+      Emes' testing build not for general deployment
+    releaseTypes:
+      - Feature
+      - BugFix
+    recommended: true
+  images:
+    '':
+      properties:
+        nginx-ingress.controller.image.repository:
+          type: REPO_WITH_REGISTRY
+        nginx-ingress.controller.image.tag:
+          type: TAG
+    nap-dos-arbitrator:
+      properties:
+        nginx-appprotect-dos-arbitrator.repository:
+          type: REPO_WITH_REGISTRY
+        nginx-appprotect-dos-arbitrator.tag:
+          type: TAG
+  deployerServiceAccount:
+    description: >-
+      NGINX Ingress requires a service account with permissions to install CRDs
+      and ingress classes.
+    roles:
+      # These are the permissions assigned to the k8s SA which will be assigned to
+      # the deployer process; these need to be sufficient to install NGINX CRDs
+      # and k8s classes.
+      - type: ClusterRole
+        rulesType: CUSTOM
+        rules:
+          - apiGroups:
+              - networking.k8s.io
+            resources:
+              - ingressclasses
+            verbs:
+              - '*'
+          - apiGroups:
+              - apiextensions.k8s.io
+            resources:
+              - customresourcedefinitions
+            verbs:
+              - '*'
+          - apiGroups:
+              - app.k8s.io
+            resources:
+              - applications
+            verbs:
+              - get
+              - list
+              - patch
+properties:
+  installDoSArbitrator:
+    type: boolean
+    title: Install NGINX App Protect DoS Arbitrator service (recommended)
+    # TODO @memes set LINK correctly
+    description: >-
+      NGINX App Protect DoS requires a that a single DoS Arbitrator service
+      is installed and shared by all NGINX App Protect DoS deployments in a cluster.
+      Disable the DoS Arbitrator only if you are certain an existing DoS Arbitrator
+      service is present and manually add a DNS record that resolves to the existing
+      Dos Arbitrator service. See LINK to allow this deployment to access it.
+    default: true
+  nginx-ingress.controller.enableCustomResources:
+    type: boolean
+    title: Enable Custom Resources (recommended)
+    description: >-
+      Requires that NGINX Ingress Controller CRDs are already installed or will
+      be installed in this deployment.
+    default: true
+  nginx-ingress.controller.globalConfiguration.create:
+    type: boolean
+    title: Create Global Configuration
+    description: >-
+      Enables support for the TCP and UDP load balancing features of the Ingress
+      Controller. Requires 'Enable Custom Resources' to be checked.
+    default: false
+  nginx-ingress.controller.enableExternalDNS:
+    type: boolean
+    title: Enable ExternalDNS support
+    description: >-
+      Enables ExternalDNS support for Virtual Server resources. Requires 'Enable
+      Custom Resources' to be checked.
+    default: false
+  certificate:
+    type: string
+    title: Default TLS certificate and key
+    description: >-
+      This certificate will be used for TLS ingress by default; we recommend that
+      you use your own certificate and key.
+    x-google-marketplace:
+      type: TLS_CERTIFICATE
+      tlsCertificate:
+        generatedProperties:
+          base64EncodedCertificate: nginx-ingress.controller.defaultTLS.cert
+          base64EncodedPrivateKey: nginx-ingress.controller.defaultTLS.key
+  name:
+    type: string
+    x-google-marketplace:
+      type: NAME
+  namespace:
+    type: string
+    x-google-marketplace:
+      type: NAMESPACE
+  deployerImage:
+    type: string
+    x-google-marketplace:
+      type: DEPLOYER_IMAGE
+  nginx-ingress.controller.gcpReportingSecret:
+    type: string
+    x-google-marketplace:
+      type: REPORTING_SECRET
+  nginx-ingress.controller.serviceAccount.name:
+    type: string
+    x-google-marketplace:
+      type: SERVICE_ACCOUNT
+      serviceAccount:
+        description: >-
+          The kubernetes service account that will be used for NGINX resources
+          executing on the cluster.
+        roles:
+        # GCP Marketplace creates the k8s SA account and binds with the role(s) defined
+        # here; the cumulative permissions below should match those that *would have*
+        # been assigned by upstream helm chart RBAC for base NGINX+ Ingress Controller
+        # with NGINX App Protect DoS. Keep synced with those declared at
+        # https://github.com/nginxinc/kubernetes-ingress/blob/main/deployments/helm-chart/templates/rbac.yaml
+        - type: ClusterRole
+          rulesType: CUSTOM
+          rules:
+            - apiGroups:
+              - appprotectdos.f5.com
+              resources:
+                - apdospolicies
+                - apdoslogconfs
+                - dosprotectedresources
+              verbs:
+                - get
+                - watch
+                - list
+            - apiGroups:
+                - discovery.k8s.io
+              resources:
+                - endpointslices
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - services
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - secrets
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - get
+                - list
+                - watch
+                # By default, the upstream chart sets .controller.reportIngressStatus.enableLeaderElection
+                # to true; permit update and create to match.
+                - update
+                - create
+            - apiGroups:
+                - ""
+              resources:
+                - pods
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - namespaces
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+                - list
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - list
+                - watch
+                - update
+                - create
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingresses
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingressclasses
+              verbs:
+                - get
+            # By default, the upstream chart sets .controller.reportIngressStatus.enable
+            # to true; permit update of networking
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingresses/status
+              verbs:
+                - update
+            # We allow the customer to choose to enable/disable custom resources,
+            # but the role must assume that customer has chosen YES since it is
+            # created before we get a chance to process options.
+            - apiGroups:
+                - k8s.nginx.org
+              resources:
+                - virtualservers
+                - virtualserverroutes
+                - globalconfigurations
+                - transportservers
+                - policies
+              verbs:
+                - list
+                - watch
+                - get
+            - apiGroups:
+                - k8s.nginx.org
+              resources:
+                - virtualservers/status
+                - virtualserverroutes/status
+                - policies/status
+                - transportservers/status
+              verbs:
+                - update
+            # We allow the customer to choose to enable/disable ExternalDNS,
+            # but the role must assume that customer has chosen YES since it is
+            # created before we get a chance to process options.
+            - apiGroups:
+                - externaldns.nginx.org
+              resources:
+                - dnsendpoints
+              verbs:
+                - list
+                - watch
+                - get
+                - update
+                - create
+                - delete
+            - apiGroups:
+                - externaldns.nginx.org
+              resources:
+                - dnsendpoints/status
+              verbs:
+                - update
+required:
+  - installDoSArbitrator
+  - nginx-ingress.controller.enableCustomResources
+  - nginx-ingress.controller.globalConfiguration.create
+  - nginx-ingress.controller.enableExternalDNS
+  - name
+  - namespace
+  - deployerImage
+  - nginx-ingress.controller.gcpReportingSecret
+  - nginx-ingress.controller.serviceAccount.name

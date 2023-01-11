@@ -1,0 +1,13 @@
+testerImagePullPolicy: Always
+nginx-ingress:
+  rbac:
+    create: false
+  controller:
+    gcpServiceName: nginx-ingress-plus-dos.endpoints.f5-7626-networks-public.cloud.goog
+    nginxplus: true
+    appprotect:
+      enable: false
+    appprotectdos:
+      enable: true
+    image:
+      pullPolicy: Always

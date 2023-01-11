@@ -1,0 +1,6 @@
+properties:
+  testerImage:
+    type: string
+    default: gcr.io/f5-7626-networks-public/nginxinc/nginx-ingress-plus/tester:v2.4.2
+    x-google-property:
+      type: IMAGE

@@ -1,0 +1,243 @@
+# Build the GCP Marketplace image for NGINX+ Ingress Controller variants and
+# pushes them to gcr.io repo.
+# TODO @memes - delete this when nginxinc/kubernetes-ingress repo is building GCP
+# images and publishing them.
+---
+steps:
+  # Warm up docker cache
+  - id: pull-busybox
+    name: docker
+    entrypoint: sh
+    args:
+      - -c
+      - "docker pull busybox:${_BUSYBOX_TAG} || exit 0"
+    waitFor:
+      - "-"
+  - id: pull-goreleaser
+    name: docker
+    entrypoint: sh
+    args:
+      - -c
+      - "docker pull goreleaser/goreleaser:${_GORELEASER_TAG} || exit 0"
+    waitFor:
+      - "-"
+  # Install JQ binary to a known path
+  - id: download-jq
+    name: busybox:${_BUSYBOX_TAG}
+    entrypoint: /bin/sh
+    args:
+      - -c
+      - >-
+        mkdir -p /workspace/bin &&
+          wget -q -O /workspace/bin/jq https://github.com/stedolan/jq/releases/download/jq-${_JQ_VERSION}/jq-linux64 &&
+          chmod 0755 /workspace/bin/jq
+    waitFor:
+      - pull-busybox
+  # Use JQ to extract the NGINX+ JWT, repo cert and key from JSON secret
+  - id: extract-nginx-creds
+    name: docker
+    entrypoint: /bin/sh
+    args:
+      - -c
+      - >-
+        echo none | docker login --username $(/workspace/bin/jq -nr 'env.NGINX_SECRET | fromjson | .jwt') --password-stdin private-registry.nginx.com &&
+          /workspace/bin/jq -nr 'env.NGINX_SECRET | fromjson | .certificate' > nginx-repo.crt &&
+          /workspace/bin/jq -nr 'env.NGINX_SECRET | fromjson | .key' > nginx-repo.key &&
+          rm -f /workspace/bin/jq
+    secretEnv:
+      - NGINX_SECRET
+    waitFor:
+      - download-jq
+  # Build the GCP NGINX+ Ingress controller
+  - id: build-kic-gcp-binary
+    name: goreleaser/goreleaser:${_GORELEASER_TAG}
+    args:
+      - >-
+        build --rm-dist --id gcp ${_GORELEASER_BUILD_ARGS}
+    env:
+      - 'GCP_PRODUCT_CODE=nginx-ingress-plus.endpoints.f5-7626-networks-public.cloud.goog'
+    waitFor:
+      - pull-goreleaser
+  # Build KIC w/N+ using default debian-plus base
+  - id: build-kic-gcp-container
+    name: docker
+    args:
+      - build
+      - --secret
+      - id=nginx-repo.crt,src=nginx-repo.crt
+      - --secret
+      - id=nginx-repo.key,src=nginx-repo.key
+      - --build-arg
+      - IC_VERSION=${_VERSION}-SNAPSHOT-${SHORT_SHA} 
+      - --build-arg
+      - GIT_COMMIT=${COMMIT_SHA}
+      - --build-arg
+      - BUILD_OS=debian-plus
+      - --build-arg
+      - TARGETARCH=amd64
+      - --build-arg
+      - NAP_MODULES_GCP=
+      - --target
+      - gcp
+      - --file
+      - build/Dockerfile
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}:${_VERSION}
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - extract-nginx-creds
+      - build-kic-gcp-binary
+  # Build the remaining GCP NGINX+ Ingress Controller + NAP binaries
+  - id: build-kic-gcp-nap-binaries
+    name: goreleaser/goreleaser:${_GORELEASER_TAG}
+    args:
+      - >-
+        build --rm-dist --id gcp-nap-dos --id gcp-nap-waf --id gcp-nap-both ${_GORELEASER_BUILD_ARGS}
+    env:
+      - 'GCP_NAP_DOS_PRODUCT_CODE=nginx-ingress-plus-dos.endpoints.f5-7626-networks-public.cloud.goog'
+      - 'GCP_NAP_WAF_PRODUCT_CODE=nginx-ingress-plus-nap.endpoints.f5-7626-networks-public.cloud.goog'
+      - 'GCP_NAP_WAF_DOS_PRODUCT_CODE=nginx-ingress-plus-nap-dos.endpoints.f5-7626-networks-public.cloud.goog'
+    waitFor:
+      - pull-goreleaser
+      - build-kic-gcp-container
+  # Build KIC w/NGINX App Protect
+  - id: build-kic-gcp-nap-waf-container
+    name: docker
+    args:
+      - build
+      - --secret
+      - id=nginx-repo.crt,src=nginx-repo.crt
+      - --secret
+      - id=nginx-repo.key,src=nginx-repo.key
+      - --build-arg
+      - IC_VERSION=${_VERSION}-SNAPSHOT-${SHORT_SHA} 
+      - --build-arg
+      - GIT_COMMIT=${COMMIT_SHA}
+      - --build-arg
+      - BUILD_OS=debian-plus-nap
+      - --build-arg
+      - TARGETARCH=amd64
+      - --build-arg
+      - NAP_MODULES=waf
+      - --build-arg
+      - NAP_MODULES_GCP=nap-waf
+      - --target
+      - gcp
+      - --file
+      - build/Dockerfile
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}-nap:${_VERSION}
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}-nap:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - extract-nginx-creds
+      - build-kic-gcp-nap-binaries
+  # Build KIC w/NGINX App Protect DoS
+  - id: build-kic-gcp-nap-dos-container
+    name: docker
+    args:
+      - build
+      - --secret
+      - id=nginx-repo.crt,src=nginx-repo.crt
+      - --secret
+      - id=nginx-repo.key,src=nginx-repo.key
+      - --build-arg
+      - IC_VERSION=${_VERSION}-SNAPSHOT-${SHORT_SHA} 
+      - --build-arg
+      - GIT_COMMIT=${COMMIT_SHA}
+      - --build-arg
+      - BUILD_OS=debian-plus-nap
+      - --build-arg
+      - TARGETARCH=amd64
+      - --build-arg
+      - NAP_MODULES=dos
+      - --build-arg
+      - NAP_MODULES_GCP=nap-dos
+      - --target
+      - gcp
+      - --file
+      - build/Dockerfile
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}-dos:${_VERSION}
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}-dos:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - extract-nginx-creds
+      - build-kic-gcp-nap-binaries
+  # Build KIC w/NGINX App Protect WAF and DoS
+  - id: build-kic-gcp-nap-both-container
+    name: docker
+    args:
+      - build
+      - --secret
+      - id=nginx-repo.crt,src=nginx-repo.crt
+      - --secret
+      - id=nginx-repo.key,src=nginx-repo.key
+      - --build-arg
+      - IC_VERSION=${_VERSION}-SNAPSHOT-${SHORT_SHA} 
+      - --build-arg
+      - GIT_COMMIT=${COMMIT_SHA}
+      - --build-arg
+      - BUILD_OS=debian-plus-nap
+      - --build-arg
+      - TARGETARCH=amd64
+      - --build-arg
+      - NAP_MODULES=waf,dos
+      - --build-arg
+      - NAP_MODULES_GCP=nap-both
+      - --target
+      - gcp
+      - --file
+      - build/Dockerfile
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}-nap-dos:${_VERSION}
+      - --tag
+      - ${_REGISTRY}/${_BASE_NAME}-nap-dos:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - extract-nginx-creds
+      - build-kic-gcp-nap-binaries
+timeout: 1200s
+options:
+  env:
+    - DOCKER_BUILDKIT=1
+  dynamic_substitutions: true
+  substitution_option: 'ALLOW_LOOSE'
+images:
+  - ${_REGISTRY}/${_BASE_NAME}:${_VERSION}
+  - ${_REGISTRY}/${_BASE_NAME}:${_RELEASE_TRACK}
+  - ${_REGISTRY}/${_BASE_NAME}-nap:${_VERSION}
+  - ${_REGISTRY}/${_BASE_NAME}-nap:${_RELEASE_TRACK}
+  - ${_REGISTRY}/${_BASE_NAME}-dos:${_VERSION}
+  - ${_REGISTRY}/${_BASE_NAME}-dos:${_RELEASE_TRACK}
+  - ${_REGISTRY}/${_BASE_NAME}-nap-dos:${_VERSION}
+  - ${_REGISTRY}/${_BASE_NAME}-nap-dos:${_RELEASE_TRACK}
+availableSecrets:
+  secretManager:
+    - versionName: "projects/$PROJECT_NUMBER/secrets/${_NGINX_REPO_AUTH_KEY}/versions/${_NGINX_REPO_AUTH_VERSION}"
+      env: NGINX_SECRET
+substitutions:
+  # The Container Registry/Artifact Repository where the images will be pushed
+  _REGISTRY: 'gcr.io/f5-7626-networks-public/nginxinc'
+  # Base product name for NGINX Ingress Controller line
+  _BASE_NAME: nginx-ingress-plus
+  # Busybox tag to use
+  _BUSYBOX_TAG: '1.36.0'
+  # Goreleaser tag
+  _GORELEASER_TAG: 'v1.14.1'
+  # Additional goreleaser build args to apply; e.g. '--snapshot' if building from
+  # untagged _UPSTREAM_REF.
+  _GORELEASER_BUILD_ARGS: ''
+  # JQ version to install
+  _JQ_VERSION: '1.6'
+  # NGINX+ secret key containing certificate and key fields - REQUIRED
+  _NGINX_REPO_AUTH_KEY: ''
+  _NGINX_REPO_AUTH_VERSION: 'latest'
+  ## Dynamic substitutions; strip the leading v from git tag for version and
+  ## generate the release track as major.minor only
+  _VERSION: '${TAG_NAME#v}'
+  _RELEASE_TRACK: '${_VERSION%.*}'

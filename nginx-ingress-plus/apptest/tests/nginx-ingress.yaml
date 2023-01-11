@@ -1,0 +1,48 @@
+actions:
+  - name: Verify kubectl is available
+    bashTest:
+      script: kubectl version
+      expect:
+        exitCode:
+          equals: 0
+  # NOTE: executes as default service account, so has no access to kubeapi
+  # - name: Verify the NGINX ingress class is registered
+  #   bashTest:
+  #     script: kubectl get ingressclasses nginx
+  #     expect:
+  #       exitCode:
+  #         equals: 0
+  # - name: Verify NGINX Ingress replicas are ready
+  #   bashTest:
+  #     script: kubectl get {{ .Env.NGINX_CONTROLLER_KIND }} -n {{ .Env.NAMESPACE }} {{ .Env.NGINX_CONTROLLER_NAME }} -o jsonpath='{.status.readyReplicas}'
+  #     expect:
+  #       exitCode:
+  #         equals: 0
+  #       stdout:
+  #         matches: '[1-9]+'
+  # - name: NGINX Ingress service should be active
+  #   bashTest:
+  #     script: kubectl get service -n {{ .Env.NAMESPACE }} {{ .Env.NGINX_SERVICE_NAME }}
+  #     expect:
+  #       exitCode:
+  #         equals: 0
+  - name: HTTP service should return 404 for a new install
+    httpTest:
+      url: http://{{ .Env.NGINX_SERVICE_NAME }}/
+      expect:
+        statusCode:
+          equals: 404
+        bodyText:
+          html:
+            body:
+              contains: nginx
+  # Built-in http test method doesn't support TlS config with skip verify flag; use
+  # curl -k
+  - name: HTTPS service should return 404 for a new install
+    bashTest:
+      script: curl -sko /dev/null -w "%{response_code}" https://{{ .Env.NGINX_SERVICE_NAME }}/
+      expect:
+        stdout:
+          contains: 404
+        exitCode:
+          equals: 0

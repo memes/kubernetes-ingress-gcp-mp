@@ -1,0 +1,22 @@
+name: nginx-ingress-plus-nap-deployer
+version: 0.0.1
+appVersion: 2.4.2
+apiVersion: v2
+kubeVersion: ">= 1.21.0-0"
+description: NGINX+ Ingress Controller w/NGINX+ App Protect deployer for GCP Marketplace
+icon: https://raw.githubusercontent.com/memes/kubernetes-ingress-gcp-mp/main/nginx-ingress-plus-nap/chart/chart-icon.png
+home: https://github.com/memes/kubernetes-ingress-gcp-mp
+sources:
+  - https://github.com/memes/kubernetes-ingress/tree/main/nginx-ingress-plus-nap/
+dependencies:
+  - name: nginx-ingress
+    version: 0.15.2
+    repository: https://helm.nginx.com/stable
+keywords:
+  - ingress
+  - nginx
+  - gcp
+  - google
+maintainers:
+  - name: nginxinc
+    email: kubernetes@nginx.com

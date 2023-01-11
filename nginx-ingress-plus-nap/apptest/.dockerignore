@@ -1,0 +1,4 @@
+# Apptest image just needs the testing script and definitions
+*
+!bin
+!tests

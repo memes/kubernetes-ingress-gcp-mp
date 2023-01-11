@@ -1,0 +1,21 @@
+# Execute test cases for DoS Arbitrator
+actions:
+  - name: Verify kubectl is available
+    bashTest:
+      script: kubectl version
+      expect:
+        exitCode:
+          equals: 0
+  # NOTE: executes as default service account, so has no access to kubeapi
+  # - name: NGINX App Protect DoS Arbitrator service should be active
+  #   bashTest:
+  #     script: kubectl get svc -n {{ .Env.NAMESPACE }} {{ .Env.ARBITRATOR_SERVICE_NAME }}
+  #     expect:
+  #       exitCode:
+  #         equals: 0
+  - name: HTTP service should return 404 for a new install
+    httpTest:
+      url: http://{{ .Env.ARBITRATOR_SERVICE_NAME }}:{{ .Env.ARBITRATOR_SERVICE_PORT }}/
+      expect:
+        statusCode:
+          equals: 404

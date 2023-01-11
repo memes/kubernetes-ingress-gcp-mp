@@ -1,0 +1,12 @@
+testerImagePullPolicy: Always
+nginx-ingress:
+  rbac:
+    create: false
+  controller:
+    nginxplus: true
+    appprotect:
+      enable: true
+    appprotectdos:
+      enable: true
+    image:
+      pullPolicy: Always

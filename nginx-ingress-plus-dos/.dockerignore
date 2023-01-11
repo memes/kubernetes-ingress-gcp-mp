@@ -1,0 +1,5 @@
+# Deployer image just needs the helm chart and marketplace schema declaration
+# from apptest folder
+apptest
+!apptest/chart
+!apptest/schema.yaml

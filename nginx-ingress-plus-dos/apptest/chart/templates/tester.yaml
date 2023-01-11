@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-tester"
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+  annotations:
+    helm.sh/hook: test-success
+    marketplace.cloud.google.com/verification: test
+spec:
+  containers:
+    - name: tester
+      image: "{{ .Values.testerImage }}"
+      imagePullPolicy: {{ .Values.testerImagePullPolicy }}
+      env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NGINX_SERVICE_NAME
+          value: {{ $nginx := index .Values "nginx-ingress" }}{{ default (printf "%s-nginx-ingress" .Release.Name  | trunc 63 | trimSuffix "-") $nginx.controller.service.name }}
+        - name: NGINX_CONTROLLER_KIND
+          value: {{ default "deployment" $nginx.controller.kind }}
+        - name: NGINX_CONTROLLER_NAME
+          value: {{ default (printf "%s-nginx-ingress" .Release.Name  | trunc 63 | trimSuffix "-") $nginx.controller.name }}
+        - name: ARBITRATOR_SERVICE_NAME
+          value: {{ $dos := index .Values "nginx-appprotect-dos-arbitrator" }}{{ default "svc-appprotect-dos-arb" $dos.arbitrator.serviceName }}
+        - name: ARBITRATOR_SERVICE_PORT
+          value: "{{ default "3000" $dos.arbitrator.servicePort }}"
+  restartPolicy: Never
+{{- if .Values.testerServiceAccount }}
+  serviceAccount: {{ .Values.testerServiceAccount }}
+{{- end }}

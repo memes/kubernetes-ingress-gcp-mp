@@ -1,0 +1,68 @@
+apiVersion: app.k8s.io/v1beta1
+kind: Application
+metadata:
+  name: "{{ .Release.Name }}"
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+  annotations:
+    kubernetes-engine.cloud.google.com/icon: >-
+      data:image/png;base64,{{ .Files.Get "chart-icon.png" | b64enc }}
+    # TODO - speculative service name that will need to change once marketplace listing is created
+    marketplace.cloud.google.com/deploy-info: '{"partner_id": "f5-7626-networks-public", "product_id": "nginx-ingress-plus-dos.endpoints.f5-7626-networks-public.cloud.goog", "partner_name": "F5 Networks"}'
+spec:
+  descriptor:
+    type: NGINX Ingress Controller with NGINX App Protect DoS (Premium Edition)
+    version: "{{ $nginx := index .Values "nginx-ingress" }}{{ $nginx.controller.image.tag }}"
+    description: |-
+      NGINX Ingress Controller is a best-in-class traffic management solution for
+      cloud-native apps in Kubernetes and containerized environments in GKE.
+
+      In a CNCF survey, nearly two-thirds of respondents reported using the NGINX
+      Ingress Controller (more than all other controllers combined) and NGINX
+      Ingress Controller has been downloaded more than 10 million times on DockerHub.
+      Combining the speed and performance of NGINX with the trust and security
+      behind the power of F5, NGINX Ingress Controller is synonymous with high-performing,
+      scalable, and secure modern apps in production.
+
+      This is the official implementation of NGINX Ingress Controller (based on
+      NGINX Plus) from NGINX. It is high-performance, production-ready, and
+      suitable for longterm deployment. We focus on providing stability across
+      releases, with features that can be deployed at enterprise scale. Included
+      in this subscription is NGINX's award-winning support.
+
+      *The Premium Edition includes access 24x7 support with a 1-hour response time.*
+    maintainers:
+    - name: nginxinc
+      email: kubernetes@nginx.com
+    links:
+    - description: More info about NGINX Ingress Controller
+      url: https://www.nginx.com/products/nginx-ingress-controller/
+    - description: Performance Testing NGINX Ingress Controllers
+      url: https://www.nginx.com/blog/performance-testing-nginx-ingress-controllers-dynamic-kubernetes-cloud-environment/
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ .Release.Name }}"
+  componentKinds:
+  {{- if eq $nginx.controller.kind "deployment" }}
+  - group: apps/v1
+    kind: Deployment
+  {{- end }}
+  {{- if eq $nginx.controller.kind "daemonset" }}
+  - group: apps/v1
+    kind: DaemonSet
+  {{- end }}
+  - group: v1
+    kind: ConfigMap
+  - group: v1
+    kind: Secret
+  - group: v1
+    kind: Service
+  - group: v1
+    kind: Pod
+  - group: networking.k8s.io/v1
+    kind: IngressClass
+{{- if $nginx.controller.globalConfiguration.create }}
+  - group: k8s.nginx.org/v1alpha1
+    kind: GlobalConfiguration
+{{- end }}
