@@ -1,0 +1,168 @@
+# Build the GCP Marketplace images for NGINX+ Ingress Controller, pushing them
+# to F5's gcr.io repo.
+# yamllint disable rule:line-length
+---
+steps:
+  # Warm up docker cache
+  - id: pull-busybox
+    name: docker
+    entrypoint: sh
+    args:
+      - -c
+      - "docker pull busybox:${_BUSYBOX_TAG} || exit 0"
+    waitFor:
+      - '-'
+  - id: pull-gcrane
+    name: docker
+    entrypoint: sh
+    args:
+      - -c
+      - "docker pull gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG} || exit 0"
+    waitFor:
+      - '-'
+  # Install JQ binary to a known path
+  - id: download-jq
+    name: busybox:${_BUSYBOX_TAG}
+    entrypoint: /bin/sh
+    args:
+      - -c
+      - >-
+        mkdir -p /workspace/bin &&
+          wget -q -O /workspace/bin/jq https://github.com/stedolan/jq/releases/download/jq-${_JQ_VERSION}/jq-linux64 &&
+          chmod 0755 /workspace/bin/jq
+    waitFor:
+      - pull-busybox
+  # Use JQ to extract the NGINX+ JWT from JSON secret and configure Docker login
+  # to NGINX private repository; gcrane groks Docker login config.
+  - id: extract-nginx-creds
+    name: docker
+    entrypoint: /bin/sh
+    args:
+      - -c
+      - >-
+        echo none | docker login --username $(/workspace/bin/jq -nr 'env.NGINX_SECRET | fromjson | .jwt') --password-stdin ${_NGINX_PRIVATE_REGISTRY} &&
+          rm -f /workspace/bin/jq
+    secretEnv:
+      - NGINX_SECRET
+    waitFor:
+      - download-jq
+  # Copy NGINX+ Ingress Controller from private repo to F5 GCR and tag appropriately
+  - id: copy-nginx-ingress-controller
+    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
+    args:
+      - cp
+      - --platform
+      - linux/amd64
+      - ${_NGINX_PRIVATE_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}:${_VERSION}
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}:${_VERSION}
+    waitFor:
+      - extract-nginx-creds
+  - id: tag-nginx-ingress-controller-release
+    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
+    args:
+      - tag
+      - --platform
+      - linux/amd64
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}:${_VERSION}
+      - ${_RELEASE_TRACK}
+    waitFor:
+      - copy-nginx-ingress-controller
+  # Copy UBB Agent from Google's repo to F5 GCR and tag appropriately
+  - id: copy-ubbagent
+    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
+    args:
+      - cp
+      - --platform
+      - linux/amd64
+      - gcr.io/cloud-marketplace-tools/metering/ubbagent:${_UBBAGENT_TAG}
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/ubbagent:${_VERSION}
+    waitFor:
+      - pull-gcrane
+  - id: tag-ubbagent-release
+    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
+    args:
+      - tag
+      - --platform
+      - linux/amd64
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/ubbagent:${_VERSION}
+      - ${_RELEASE_TRACK}
+    waitFor:
+      - copy-ubbagent
+  # Build NGINX+ Ingress Controller deployer and tester
+  # NOTE: the container build steps depend on successful copy of NGINX+ Ingress
+  # Controller and UBB Agent containers to gcr.io with the correct tags.
+  - id: build-deployer
+    name: docker
+    args:
+      - build
+      - --file
+      - Dockerfile
+      - --build-arg
+      - REGISTRY=${_TARGET_REGISTRY}
+      - --build-arg
+      - TAG=${_VERSION}
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/deployer:${_VERSION}
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/deployer:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - copy-nginx-ingress-controller
+      - tag-nginx-ingress-controller-release
+      - copy-ubbagent
+      - tag-ubbagent-release
+  - id: build-apptest
+    name: docker
+    args:
+      - build
+      - --file
+      - apptest/Dockerfile
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/tester:${_VERSION}
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/tester:${_RELEASE_TRACK}
+      - apptest
+    waitFor:
+      - copy-nginx-ingress-controller
+      - tag-nginx-ingress-controller-release
+      - copy-ubbagent
+      - tag-ubbagent-release
+timeout: 1200s
+options:
+  env:
+    - DOCKER_BUILDKIT=1
+  dynamic_substitutions: true
+  substitution_option: 'ALLOW_LOOSE'
+images:
+  # This list should include all images *built and tagged* as part of this run.
+  # Containers copied via gcrane do not need to be listed.
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/deployer:${_VERSION}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/deployer:${_RELEASE_TRACK}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/tester:${_VERSION}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_IMAGE}/tester:${_RELEASE_TRACK}
+availableSecrets:
+  secretManager:
+    - versionName: "projects/$PROJECT_NUMBER/secrets/${_NGINX_REPO_AUTH_KEY}/versions/${_NGINX_REPO_AUTH_VERSION}"
+      env: NGINX_SECRET
+substitutions:
+  # The Container Registry/Artifact Repository where the images will be pushed
+  _TARGET_REGISTRY: 'gcr.io/f5-7626-networks-public/nginxinc'
+  # Details of the private NGINX repository; containers from here will be copied
+  # as needed to the GCR used for marketplace.
+  _NGINX_PRIVATE_REGISTRY: private-registry.nginx.com
+  _NGINX_INGRESS_PLUS_IMAGE: nginx-ic/nginx-plus-ingress
+  # UBB Agent tag to use
+  _UBBAGENT_TAG: '0.1.1'
+  # Busybox tag to use
+  _BUSYBOX_TAG: '1.36.0'
+  # gcrane tag to use
+  _GCRANE_TAG: latest
+  # JQ version to install
+  _JQ_VERSION: '1.6'
+  # NGINX+ secret key containing certificate and key fields - REQUIRED
+  _NGINX_REPO_AUTH_KEY: ''
+  _NGINX_REPO_AUTH_VERSION: 'latest'
+  ## Dynamic substitutions; strip the leading v from git tag for version and
+  ## generate the release track as major.minor only
+  _VERSION: '${TAG_NAME#v}'
+  _RELEASE_TRACK: '${_VERSION%.*}'
