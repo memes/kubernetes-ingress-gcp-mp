@@ -1,11 +1,13 @@
 # This schema has all values, role rules, and options required to install NGINX
 # ingress controller with App Protect DoS.
+# yamllint disable rule:line-length
+---
 x-google-marketplace:
   schemaVersion: v2
   clusterConstraints:
     k8sVersion: ">= 1.21.0"
   applicationApiVersion: v1beta1
-  publishedVersion: 'v2.4.2'
+  publishedVersion: '3.0.1'
   publishedVersionMetadata:
     releaseNote: >-
       Emes' testing build not for general deployment
@@ -20,6 +22,10 @@ x-google-marketplace:
           type: REPO_WITH_REGISTRY
         nginx-ingress.controller.image.tag:
           type: TAG
+    ubbsidecar:
+      properties:
+        ubbAgentImage:
+          type: FULL
     nap-dos-arbitrator:
       properties:
         nginx-appprotect-dos-arbitrator.repository:
@@ -110,11 +116,7 @@ properties:
     type: string
     x-google-marketplace:
       type: NAMESPACE
-  deployerImage:
-    type: string
-    x-google-marketplace:
-      type: DEPLOYER_IMAGE
-  nginx-ingress.controller.gcpReportingSecret:
+  gcpReportingSecret:
     type: string
     x-google-marketplace:
       type: REPORTING_SECRET
@@ -127,159 +129,159 @@ properties:
           The kubernetes service account that will be used for NGINX resources
           executing on the cluster.
         roles:
-        # GCP Marketplace creates the k8s SA account and binds with the role(s) defined
-        # here; the cumulative permissions below should match those that *would have*
-        # been assigned by upstream helm chart RBAC for base NGINX+ Ingress Controller
-        # with NGINX App Protect DoS. Keep synced with those declared at
-        # https://github.com/nginxinc/kubernetes-ingress/blob/main/deployments/helm-chart/templates/rbac.yaml
-        - type: ClusterRole
-          rulesType: CUSTOM
-          rules:
-            - apiGroups:
-              - appprotectdos.f5.com
-              resources:
-                - apdospolicies
-                - apdoslogconfs
-                - dosprotectedresources
-              verbs:
-                - get
-                - watch
-                - list
-            - apiGroups:
-                - discovery.k8s.io
-              resources:
-                - endpointslices
-              verbs:
-                - get
-                - list
-                - watch
-            - apiGroups:
-                - ""
-              resources:
-                - services
-              verbs:
-                - get
-                - list
-                - watch
-            - apiGroups:
-                - ""
-              resources:
-                - secrets
-              verbs:
-                - get
-                - list
-                - watch
-            - apiGroups:
-                - ""
-              resources:
-                - configmaps
-              verbs:
-                - get
-                - list
-                - watch
-                # By default, the upstream chart sets .controller.reportIngressStatus.enableLeaderElection
-                # to true; permit update and create to match.
-                - update
-                - create
-            - apiGroups:
-                - ""
-              resources:
-                - pods
-              verbs:
-                - list
-                - watch
-            - apiGroups:
-                - ""
-              resources:
-                - namespaces
-              verbs:
-                - get
-                - list
-                - watch
-            - apiGroups:
-                - ""
-              resources:
-                - events
-              verbs:
-                - create
-                - patch
-                - list
-            - apiGroups:
-                - coordination.k8s.io
-              resources:
-                - leases
-              verbs:
-                - get
-                - list
-                - watch
-                - update
-                - create
-            - apiGroups:
-                - networking.k8s.io
-              resources:
-                - ingresses
-              verbs:
-                - get
-                - list
-                - watch
-            - apiGroups:
-                - networking.k8s.io
-              resources:
-                - ingressclasses
-              verbs:
-                - get
-            # By default, the upstream chart sets .controller.reportIngressStatus.enable
-            # to true; permit update of networking
-            - apiGroups:
-                - networking.k8s.io
-              resources:
-                - ingresses/status
-              verbs:
-                - update
-            # We allow the customer to choose to enable/disable custom resources,
-            # but the role must assume that customer has chosen YES since it is
-            # created before we get a chance to process options.
-            - apiGroups:
-                - k8s.nginx.org
-              resources:
-                - virtualservers
-                - virtualserverroutes
-                - globalconfigurations
-                - transportservers
-                - policies
-              verbs:
-                - list
-                - watch
-                - get
-            - apiGroups:
-                - k8s.nginx.org
-              resources:
-                - virtualservers/status
-                - virtualserverroutes/status
-                - policies/status
-                - transportservers/status
-              verbs:
-                - update
-            # We allow the customer to choose to enable/disable ExternalDNS,
-            # but the role must assume that customer has chosen YES since it is
-            # created before we get a chance to process options.
-            - apiGroups:
-                - externaldns.nginx.org
-              resources:
-                - dnsendpoints
-              verbs:
-                - list
-                - watch
-                - get
-                - update
-                - create
-                - delete
-            - apiGroups:
-                - externaldns.nginx.org
-              resources:
-                - dnsendpoints/status
-              verbs:
-                - update
+          # GCP Marketplace creates the k8s SA account and binds with the role(s) defined
+          # here; the cumulative permissions below should match those that *would have*
+          # been assigned by upstream helm chart RBAC for base NGINX+ Ingress Controller
+          # with NGINX App Protect DoS. Keep synced with those declared at
+          # https://github.com/nginxinc/kubernetes-ingress/blob/main/deployments/helm-chart/templates/rbac.yaml
+          - type: ClusterRole
+            rulesType: CUSTOM
+            rules:
+              - apiGroups:
+                  - appprotectdos.f5.com
+                resources:
+                  - apdospolicies
+                  - apdoslogconfs
+                  - dosprotectedresources
+                verbs:
+                  - get
+                  - watch
+                  - list
+              - apiGroups:
+                  - discovery.k8s.io
+                resources:
+                  - endpointslices
+                verbs:
+                  - get
+                  - list
+                  - watch
+              - apiGroups:
+                  - ""
+                resources:
+                  - services
+                verbs:
+                  - get
+                  - list
+                  - watch
+              - apiGroups:
+                  - ""
+                resources:
+                  - secrets
+                verbs:
+                  - get
+                  - list
+                  - watch
+              - apiGroups:
+                  - ""
+                resources:
+                  - configmaps
+                verbs:
+                  - get
+                  - list
+                  - watch
+                  # By default, the upstream chart sets .controller.reportIngressStatus.enableLeaderElection
+                  # to true; permit update and create to match.
+                  - update
+                  - create
+              - apiGroups:
+                  - ""
+                resources:
+                  - pods
+                verbs:
+                  - list
+                  - watch
+              - apiGroups:
+                  - ""
+                resources:
+                  - namespaces
+                verbs:
+                  - get
+                  - list
+                  - watch
+              - apiGroups:
+                  - ""
+                resources:
+                  - events
+                verbs:
+                  - create
+                  - patch
+                  - list
+              - apiGroups:
+                  - coordination.k8s.io
+                resources:
+                  - leases
+                verbs:
+                  - get
+                  - list
+                  - watch
+                  - update
+                  - create
+              - apiGroups:
+                  - networking.k8s.io
+                resources:
+                  - ingresses
+                verbs:
+                  - get
+                  - list
+                  - watch
+              - apiGroups:
+                  - networking.k8s.io
+                resources:
+                  - ingressclasses
+                verbs:
+                  - get
+              # By default, the upstream chart sets .controller.reportIngressStatus.enable
+              # to true; permit update of networking
+              - apiGroups:
+                  - networking.k8s.io
+                resources:
+                  - ingresses/status
+                verbs:
+                  - update
+              # We allow the customer to choose to enable/disable custom resources,
+              # but the role must assume that customer has chosen YES since it is
+              # created before we get a chance to process options.
+              - apiGroups:
+                  - k8s.nginx.org
+                resources:
+                  - virtualservers
+                  - virtualserverroutes
+                  - globalconfigurations
+                  - transportservers
+                  - policies
+                verbs:
+                  - list
+                  - watch
+                  - get
+              - apiGroups:
+                  - k8s.nginx.org
+                resources:
+                  - virtualservers/status
+                  - virtualserverroutes/status
+                  - policies/status
+                  - transportservers/status
+                verbs:
+                  - update
+              # We allow the customer to choose to enable/disable ExternalDNS,
+              # but the role must assume that customer has chosen YES since it is
+              # created before we get a chance to process options.
+              - apiGroups:
+                  - externaldns.nginx.org
+                resources:
+                  - dnsendpoints
+                verbs:
+                  - list
+                  - watch
+                  - get
+                  - update
+                  - create
+                  - delete
+              - apiGroups:
+                  - externaldns.nginx.org
+                resources:
+                  - dnsendpoints/status
+                verbs:
+                  - update
 required:
   - installDoSArbitrator
   - nginx-ingress.controller.enableCustomResources
@@ -287,6 +289,4 @@ required:
   - nginx-ingress.controller.enableExternalDNS
   - name
   - namespace
-  - deployerImage
-  - nginx-ingress.controller.gcpReportingSecret
   - nginx-ingress.controller.serviceAccount.name

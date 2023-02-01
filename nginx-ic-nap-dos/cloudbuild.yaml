@@ -88,30 +88,10 @@ steps:
       - ${_RELEASE_TRACK}
     waitFor:
       - copy-dos-arbitrator-waf-dos
-  # Copy UBB Agent from Google's repo to F5 GCR and tag appropriately
-  - id: copy-ubbagent-waf-dos
-    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
-    args:
-      - cp
-      - --platform
-      - linux/amd64
-      - gcr.io/cloud-marketplace-tools/metering/ubbagent:${_UBBAGENT_TAG}
-      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/ubbagent:${_VERSION}
-    waitFor:
-      - pull-gcrane
-  - id: tag-ubbagent-waf-dos-release
-    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
-    args:
-      - tag
-      - --platform
-      - linux/amd64
-      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/ubbagent:${_VERSION}
-      - ${_RELEASE_TRACK}
-    waitFor:
-      - copy-ubbagent-waf-dos
-  # Build NGINX+ Ingress Controller w/WAF & DoS deployer and tester
+  # Build NGINX+ Ingress Controller w/WAF & DoS deployer, tester, and UBB Agent
+  # containers.
   # NOTE: the container build steps depend on successful copy of NGINX+ Ingress
-  # Controller and UBB Agent containers to gcr.io with the correct tags.
+  # Controller and DoS Arbitrator containers to gcr.io with the correct tags.
   - id: build-deployer-waf-dos
     name: docker
     args:
@@ -132,8 +112,6 @@ steps:
       - tag-nginx-ingress-controller-waf-dos-release
       - copy-dos-arbitrator-waf-dos
       - tag-dos-arbitrator-waf-dos-release
-      - copy-ubbagent-waf-dos
-      - tag-ubbagent-waf-dos-release
   - id: build-apptest-waf-dos
     name: docker
     args:
@@ -150,8 +128,20 @@ steps:
       - tag-nginx-ingress-controller-waf-dos-release
       - copy-dos-arbitrator-waf-dos
       - tag-dos-arbitrator-waf-dos-release
-      - copy-ubbagent-waf-dos
-      - tag-ubbagent-waf-dos-release
+  - id: build-ubbsidecar-waf-dos
+    name: docker
+    args:
+      - build
+      - --file
+      - Dockerfile.ubbsidecar
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/ubbsidecar:${_VERSION}
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/ubbsidecar:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - copy-nginx-ingress-controller-waf-dos
+      - tag-nginx-ingress-controller-waf-dos-release
 timeout: 1200s
 options:
   env:
@@ -165,6 +155,8 @@ images:
   - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/deployer:${_RELEASE_TRACK}
   - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/tester:${_VERSION}
   - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/tester:${_RELEASE_TRACK}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/ubbsidecar:${_VERSION}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_DOS_IMAGE}/ubbsidecar:${_RELEASE_TRACK}
 availableSecrets:
   secretManager:
     - versionName: "projects/$PROJECT_NUMBER/secrets/${_NGINX_REPO_AUTH_KEY}/versions/${_NGINX_REPO_AUTH_VERSION}"
@@ -179,8 +171,6 @@ substitutions:
   # Published NGINX App Protect DoS Arbitrator container image and tag to use
   _NAP_DOS_ARBITRATOR_IMAGE: nap-dos/app_protect_dos_arb
   _NAP_DOS_ARBITRATOR_TAG: '1.1.0'
-  # UBB Agent tag to use
-  _UBBAGENT_TAG: '0.1.1'
   # Busybox tag to use
   _BUSYBOX_TAG: '1.36.0'
   # gcrane tag to use

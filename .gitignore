@@ -1,2 +1,32 @@
-# Ignore any local copies of upstream kubernetes-ingress source
-upstream
+# Ignore my direnv setup
+.envrc
+.direnv
+.tool-versions
+
+# Ignore Terraform local state
+.terraform
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+terraform.tfstate.d
+
+# Ignore any local Terraform variable assignments
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Ignore local Gemfile lock and bundler config
+.bundle
+Gemfile.lock
+
+# Ignore kitchen-terraform and test results
+test/reports/*
+!test/reports/.gitkeep
+test/setup/harness.tfvars
+.kitchen
+kitchen.local.yml
+
+# Ignore kubeconfig/gke auth files
+kubeconfig*
+gke_gcloud_auth_plugin_cache

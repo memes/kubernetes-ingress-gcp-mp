@@ -23,8 +23,9 @@ RUN helm repo add nginx-ingress https://helm.nginx.com/stable && \
 FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm:0.11.7
 # Handle CRD installation by patching GCP deployer to call shell scripts
 COPY --from=charts /bin/yq /bin/yq
-COPY bin/f5_pre_apply.sh /bin/
-RUN chmod 0755 /bin/f5_pre_apply.sh && \
+COPY bin /bin/
+RUN chmod 0755 /bin/f5_*.sh && \
+    sed -i '/helm template/i/bin/f5_pre_template.sh ${chart}/chart\n  ' /bin/create_manifests.sh && \
     sed -i '/^kubectl apply --namespace/i/bin/f5_pre_apply.sh /data/extracted/nginx-ingress/chart\n' /bin/deploy.sh /bin/deploy_with_tests.sh
 # Add the bundled deployer and tester charts and schemas
 COPY --from=charts /tmp/test/nginx-ingress.tar.gz /data-test/chart/

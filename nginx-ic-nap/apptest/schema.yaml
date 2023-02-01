@@ -1,6 +1,8 @@
+# yamllint disable rule:line-length
+---
 properties:
   testerImage:
     type: string
-    default: gcr.io/f5-7626-networks-public/nginxinc/nginx-ingress-plus-nap/tester:v2.4.2
+    default: gcr.io/f5-7626-networks-public/memes/nginx-ic-nap/nginx-plus-ingress/tester:3.0.1
     x-google-property:
       type: IMAGE

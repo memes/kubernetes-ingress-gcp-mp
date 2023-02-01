@@ -1,13 +1,15 @@
-name: nginx-ingress-plus-apptest
-version: 0.0.1
-appVersion: 2.4.2
+# yamllint disable rule:line-length
+---
+name: nginx-ic-apptest
+version: 0.0.2
+appVersion: 3.0.1
 apiVersion: v2
 kubeVersion: ">= 1.21.0-0"
 description: NGINX+ Ingress Controller tester for GCP Marketplace
-icon: https://raw.githubusercontent.com/memes/kubernetes-ingress-gcp-mp/main/nginx-ingress-plus/apptest/chart/chart-icon.png
+icon: https://raw.githubusercontent.com/memes/kubernetes-ingress-gcp-mp/main/nginx-ic/apptest/chart/chart-icon.png
 home: https://github.com/memes/kubernetes-ingress-gcp-mp
 sources:
-  - https://github.com/memes/kubernetes-ingress/tree/main/nginx-ingress-plus/apptest
+  - https://github.com/memes/kubernetes-ingress-gcp-mp/tree/main/nginx-ic/apptest
 keywords:
   - ingress
   - nginx

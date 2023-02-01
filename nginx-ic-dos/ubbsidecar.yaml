@@ -1,0 +1,34 @@
+# This is the UBB Agent sidecar configuration file that is automatically passed
+# through envsubst before being read by UBB Agent. It expects that env is
+# passing in the content of GCP Reporting Secret mapped to AGENT_ENCODED_KEY and
+# AGENT_CONSUMER_ID environment variables.
+# yamllint disable rule:line-length
+# spell-checker: disable
+---
+identities:
+  - name: gcp
+    gcp:
+      encodedServiceAccountKey: $AGENT_ENCODED_KEY
+metrics:
+  - name: cpu_usage_pod_hour
+    type: int
+    passthrough: {}
+    endpoints:
+      - name: servicecontrol
+endpoints:
+  - name: servicecontrol
+    servicecontrol:
+      identity: gcp
+      # NOTE: serviceName must match product_id in application.yaml, and both
+      # must match the producer portal identifier for the listing.
+      serviceName: f5-nginx-ingress-controller-w-f5-nginx-app-protect-dos.endpoints.f5-7626-networks-public.cloud.goog
+      consumerId: $AGENT_CONSUMER_ID
+sources:
+  - name: cpu_usage_pod_hour_heartbeat
+    heartbeat:
+      metric: cpu_usage_pod_hour
+      intervalSeconds: 60
+      value:
+        int64Value: 50
+    labels:
+      auto: true

@@ -67,30 +67,9 @@ steps:
       - ${_RELEASE_TRACK}
     waitFor:
       - copy-nginx-ingress-controller-waf
-  # Copy UBB Agent from Google'e repo to F5 GCR and tag appropriately
-  - id: copy-ubbagent-waf
-    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
-    args:
-      - cp
-      - --platform
-      - linux/amd64
-      - gcr.io/cloud-marketplace-tools/metering/ubbagent:${_UBBAGENT_TAG}
-      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/ubbagent:${_VERSION}
-    waitFor:
-      - pull-gcrane
-  - id: tag-ubbagent-waf-release
-    name: gcr.io/go-containerregistry/gcrane:${_GCRANE_TAG}
-    args:
-      - tag
-      - --platform
-      - linux/amd64
-      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/ubbagent:${_VERSION}
-      - ${_RELEASE_TRACK}
-    waitFor:
-      - copy-ubbagent-waf
-  # Build NGINX+ Ingress Controller w/WAF deployer and tester
+  # Build NGINX+ Ingress Controller deployer, tester, and UBB Agent containers.
   # NOTE: the container build steps depend on successful copy of NGINX+ Ingress
-  # Controller w/WAF and UBB Agent containers to gcr.io with the correct tags.
+  # Controller w/WAF to gcr.io with the correct tags.
   - id: build-deployer-waf
     name: docker
     args:
@@ -109,8 +88,6 @@ steps:
     waitFor:
       - copy-nginx-ingress-controller-waf
       - tag-nginx-ingress-controller-waf-release
-      - copy-ubbagent-waf
-      - tag-ubbagent-waf-release
   - id: build-apptest-waf
     name: docker
     args:
@@ -125,8 +102,20 @@ steps:
     waitFor:
       - copy-nginx-ingress-controller-waf
       - tag-nginx-ingress-controller-waf-release
-      - copy-ubbagent-waf
-      - tag-ubbagent-waf-release
+  - id: build-ubbsidecar-waf
+    name: docker
+    args:
+      - build
+      - --file
+      - Dockerfile.ubbsidecar
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/ubbsidecar:${_VERSION}
+      - --tag
+      - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/ubbsidecar:${_RELEASE_TRACK}
+      - .
+    waitFor:
+      - copy-nginx-ingress-controller-waf
+      - tag-nginx-ingress-controller-waf-release
 timeout: 1200s
 options:
   env:
@@ -140,6 +129,8 @@ images:
   - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/deployer:${_RELEASE_TRACK}
   - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/tester:${_VERSION}
   - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/tester:${_RELEASE_TRACK}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/ubbsidecar:${_VERSION}
+  - ${_TARGET_REGISTRY}/${_NGINX_INGRESS_PLUS_WAF_IMAGE}/ubbsidecar:${_RELEASE_TRACK}
 availableSecrets:
   secretManager:
     - versionName: "projects/$PROJECT_NUMBER/secrets/${_NGINX_REPO_AUTH_KEY}/versions/${_NGINX_REPO_AUTH_VERSION}"
@@ -151,8 +142,6 @@ substitutions:
   # as needed to the GCR used for marketplace.
   _NGINX_PRIVATE_REGISTRY: private-registry.nginx.com
   _NGINX_INGRESS_PLUS_WAF_IMAGE: nginx-ic-nap/nginx-plus-ingress
-  # UBB Agent tag to use
-  _UBBAGENT_TAG: '0.1.1'
   # Busybox tag to use
   _BUSYBOX_TAG: '1.36.0'
   # gcrane tag to use

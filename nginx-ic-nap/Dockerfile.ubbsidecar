@@ -1,0 +1,4 @@
+# Inserts a static configuration file into the upstream UBB Agent container.
+FROM gcr.io/cloud-marketplace-tools/metering/ubbagent:0.1.1
+COPY ubbsidecar.yaml /etc/ubbagent/config.yaml
+ENV AGENT_CONFIG_FILE /etc/ubbagent/config.yaml

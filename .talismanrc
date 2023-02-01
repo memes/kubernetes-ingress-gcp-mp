@@ -1,0 +1,27 @@
+# spell-checker: disable
+---
+fileignoreconfig:
+- filename: nginx-ic-dos/bin/f5_pre_template.sh
+  checksum: fba38370bd54bff5c28dece7c59ffbf6151a16cb7c6d88f39223ceba3a86ec3c
+- filename: nginx-ic-nap-dos/bin/f5_pre_template.sh
+  checksum: 07ff484bb7174ae632a793f448a95cdda3c1210f3ad86d4c465e5e0956b7d913
+- filename: nginx-ic-dos/chart/values.yaml
+  checksum: e2b37cd736f38133bee03413bb2ed2c1f52eabe46205caa770a88d0789481f80
+- filename: nginx-ic-dos/ubbsidecar.yaml
+  checksum: 39626938a657320175b6f473e9559fffa83298df22dd0229d1c9b1ae0b40a8b0
+- filename: nginx-ic-nap/bin/f5_pre_template.sh
+  checksum: 860757947a78e3d310753395fe19e5f3abbfb3907f33dfa8f25ec856891c798b
+- filename: nginx-ic-nap/chart/values.yaml
+  checksum: 2d2042c9371cd2c34cbe416378684ab81e46ae90f2bb0b23191c21fd5dfbd76d
+- filename: nginx-ic-nap-dos/ubbsidecar.yaml
+  checksum: 10ae4161dcb953d9c7ee89fffa05591ee4350527c93223134ade13a5641e9781
+- filename: nginx-ic-nap-dos/chart/values.yaml
+  checksum: 7f5cbc412a8e3131d277ee7f4fd5152acc26ac3d19022f0ad80ec013371e184e
+- filename: nginx-ic/bin/f5_pre_template.sh
+  checksum: 772d103957782c4414eea49fae89714f0913387b0f3e3f397422b4aad8a1b6a4
+- filename: nginx-ic/chart/values.yaml
+  checksum: 1a7bde1164059ea94c98416a9f1621b91d2cd2852156ac0fd008f145023c7d9f
+- filename: nginx-ic/ubbsidecar.yaml
+  checksum: f36d5e5b28fb556b87ab426aa927ea602571da8a84f622f361eed6e9210d1998
+- filename: nginx-ic-nap/ubbsidecar.yaml
+  checksum: 4abd80649a57f683510fa2a59ff90384f954763a56fce66f7f53c658f99328be
