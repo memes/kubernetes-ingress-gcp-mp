@@ -25,3 +25,5 @@ fileignoreconfig:
   checksum: f36d5e5b28fb556b87ab426aa927ea602571da8a84f622f361eed6e9210d1998
 - filename: nginx-ic-nap/ubbsidecar.yaml
   checksum: 4abd80649a57f683510fa2a59ff90384f954763a56fce66f7f53c658f99328be
+- filename: test/fixtures/cluster/prepare.tf
+  checksum: 7bcf765bd0b41e9fc6a0a589e5757d38b090082c8015066ac2bab003c5b30b7a

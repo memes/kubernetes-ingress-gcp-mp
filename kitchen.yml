@@ -1,0 +1,45 @@
+#
+---
+driver:
+  name: terraform
+  command_timeout: 600
+  verify_version: true
+  variables:
+    prefix: gcp-mp
+    region: us-west1
+    repository: 'gcr.io/f5-7626-networks-public/nginxinc'
+
+provisioner:
+  name: terraform
+
+verifier:
+  name: terraform
+  color: true
+  systems:
+    - name: google
+      backend: gcp
+
+platforms:
+  - name: nginx-ic
+    driver:
+      root_module_directory: test/fixtures/cluster
+      variables:
+        scenario: nginx-ic
+  - name: nginx-ic-nap
+    driver:
+      root_module_directory: test/fixtures/cluster
+      variables:
+        scenario: nginx-ic-nap
+  - name: nginx-ic-dos
+    driver:
+      root_module_directory: test/fixtures/cluster
+      variables:
+        scenario: nginx-ic-dos
+  - name: nginx-ic-nap-dos
+    driver:
+      root_module_directory: test/fixtures/cluster
+      variables:
+        scenario: nginx-ic-nap-dos
+
+suites:
+  - name: nginx-ingress-controller
